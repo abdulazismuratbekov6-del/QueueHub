@@ -3,7 +3,7 @@ services:
     name: queuehub-api
     env: node
     plan: free
-    buildCommand: corepack enable && corepack prepare pnpm@11.15.0 --activate && pnpm install --frozen-lockfile && pnpm --filter @queuehub/api run build && pnpm --filter @queuehub/api exec prisma migrate deploy
+    buildCommand: pnpm install --frozen-lockfile && pnpm --filter @queuehub/api run build && pnpm --filter @queuehub/api exec prisma migrate deploy
     startCommand: node apps/api/dist/main.js
     healthCheckPath: /
     envVars:
