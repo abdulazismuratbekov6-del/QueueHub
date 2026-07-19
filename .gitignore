@@ -1,0 +1,39 @@
+# dependencies
+node_modules/
+.pnpm-store/
+
+# env
+.env
+.env.local
+.env.*.local
+!.env.example
+
+# build output
+dist/
+build/
+.next/
+out/
+
+# prisma
+apps/api/generated/
+
+# uploads (local avatar storage)
+apps/api/uploads/*
+!apps/api/uploads/.gitkeep
+
+# logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# editor
+.vscode/*
+!.vscode/extensions.json
+.idea/
+
+# testing
+coverage/

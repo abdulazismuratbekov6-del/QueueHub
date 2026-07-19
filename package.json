@@ -1,0 +1,20 @@
+{
+  "name": "queuehub",
+  "private": true,
+  "version": "1.0.0",
+  "description": "QueueHub - realtime queue management for labs, exams and classes",
+  "scripts": {
+    "dev:api": "pnpm --filter @queuehub/api run start:dev",
+    "dev:web": "pnpm --filter @queuehub/web run dev",
+    "build:api": "pnpm --filter @queuehub/api run build",
+    "build:web": "pnpm --filter @queuehub/web run build",
+    "build": "pnpm run build:api && pnpm run build:web",
+    "prisma:generate": "pnpm --filter @queuehub/api run prisma:generate",
+    "prisma:migrate": "pnpm --filter @queuehub/api run prisma:migrate",
+    "prisma:studio": "pnpm --filter @queuehub/api run prisma:studio"
+  },
+  "engines": {
+    "node": ">=18.18.0"
+  },
+  "packageManager": "pnpm@11.15.0"
+}

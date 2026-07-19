@@ -1,0 +1,136 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  GUEST
+  STUDENT
+  TEACHER
+  ADMIN
+}
+
+enum QueueStatus {
+  OPEN
+  CLOSED
+}
+
+enum SwapType {
+  ONE_ROUND
+  PERMANENT
+}
+
+enum SwapStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+}
+
+enum HistoryAction {
+  JOIN
+  LEAVE
+  SWAP
+  SWAP_REVERT
+  RANDOMIZE
+  QUEUE_OPEN
+  QUEUE_CLOSE
+}
+
+model User {
+  id               String   @id @default(uuid())
+  firstName        String
+  lastName         String?
+  email            String?  @unique
+  passwordHash     String?
+  avatarUrl        String?
+  role             Role     @default(STUDENT)
+  isGuest          Boolean  @default(false)
+  refreshTokenHash String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  ownedQueues    Queue[]        @relation("QueueOwner")
+  memberships    QueueMember[]
+  sentSwaps      SwapRequest[]  @relation("SwapSender")
+  receivedSwaps  SwapRequest[]  @relation("SwapReceiver")
+  historyEntries HistoryEntry[]
+
+  @@map("users")
+}
+
+model Queue {
+  id                String      @id @default(uuid())
+  title             String
+  subject           String
+  description       String?
+  roomCode          String      @unique
+  qrCode            String
+  ownerId           String
+  owner             User        @relation("QueueOwner", fields: [ownerId], references: [id])
+  status            QueueStatus @default(OPEN)
+  randomEnabled     Boolean     @default(false)
+  registrationOpen  Boolean     @default(true)
+  timerSeconds      Int?
+  currentPosition   Int         @default(0)
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+
+  members        QueueMember[]
+  swapRequests   SwapRequest[]
+  historyEntries HistoryEntry[]
+
+  @@map("queues")
+}
+
+model QueueMember {
+  id               String    @id @default(uuid())
+  queueId          String
+  queue            Queue     @relation(fields: [queueId], references: [id], onDelete: Cascade)
+  userId           String
+  user             User      @relation(fields: [userId], references: [id])
+  position         Int
+  originalPosition Int
+  joinedAt         DateTime  @default(now())
+  leftAt           DateTime?
+  calledAt         DateTime?
+  completedAt      DateTime?
+
+  @@unique([queueId, userId])
+  @@map("queue_members")
+}
+
+model SwapRequest {
+  id                String     @id @default(uuid())
+  queueId           String
+  queue             Queue      @relation(fields: [queueId], references: [id], onDelete: Cascade)
+  senderId          String
+  sender            User       @relation("SwapSender", fields: [senderId], references: [id])
+  receiverId        String
+  receiver          User       @relation("SwapReceiver", fields: [receiverId], references: [id])
+  senderPosition    Int
+  receiverPosition  Int
+  swapType          SwapType
+  status            SwapStatus @default(PENDING)
+  createdAt         DateTime   @default(now())
+  acceptedAt        DateTime?
+  revertedAt        DateTime?
+
+  @@map("swap_requests")
+}
+
+model HistoryEntry {
+  id          String        @id @default(uuid())
+  queueId     String
+  queue       Queue         @relation(fields: [queueId], references: [id], onDelete: Cascade)
+  userId      String?
+  user        User?         @relation(fields: [userId], references: [id])
+  action      HistoryAction
+  description String
+  createdAt   DateTime      @default(now())
+
+  @@map("history_entries")
+}
