@@ -1,0 +1,31 @@
+services:
+  - type: web
+    name: queuehub-api
+    env: node
+    plan: free
+    buildCommand: corepack enable && corepack prepare pnpm@11.15.0 --activate && pnpm install --frozen-lockfile && pnpm --filter @queuehub/api run build && pnpm --filter @queuehub/api exec prisma migrate deploy
+    startCommand: node apps/api/dist/main.js
+    healthCheckPath: /
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        sync: false
+      - key: JWT_ACCESS_SECRET
+        generateValue: true
+      - key: JWT_REFRESH_SECRET
+        generateValue: true
+      - key: JWT_ACCESS_TTL
+        value: 15m
+      - key: JWT_REFRESH_TTL
+        value: 7d
+      - key: GUEST_TOKEN_SECRET
+        generateValue: true
+      - key: CORS_ORIGIN
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: SUPABASE_AVATAR_BUCKET
+        value: avatars

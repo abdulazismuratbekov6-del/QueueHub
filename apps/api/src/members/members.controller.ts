@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Post, Query, Req, Res, UseGuards } from "@nestjs/common";
+import { Body, Controller, Get, Param, Post, Query, Res, UseGuards } from "@nestjs/common";
 import { Response } from "express";
 import { OptionalJwtAuthGuard } from "../common/guards/optional-jwt-auth.guard";
 import { JwtAuthGuard } from "../common/guards/jwt-auth.guard";
@@ -6,9 +6,7 @@ import { CurrentUser } from "../common/decorators/current-user.decorator";
 import { AuthenticatedUser } from "../common/types/authenticated-user";
 import { MembersService } from "./members.service";
 import { JoinQueueDto } from "./dto/join-queue.dto";
-
-const REFRESH_COOKIE = "queuehub_refresh";
-const CSRF_COOKIE = "queuehub_csrf";
+import { setAuthCookies } from "../common/utils/auth-cookies";
 
 @Controller("queues")
 export class MembersController {
@@ -30,21 +28,7 @@ export class MembersController {
     const result = await this.membersService.join(id, user, dto);
 
     if (result.auth) {
-      const isProd = process.env.NODE_ENV === "production";
-      res.cookie(REFRESH_COOKIE, result.auth.refreshToken, {
-        httpOnly: true,
-        sameSite: "lax",
-        secure: isProd,
-        path: "/auth",
-        maxAge: 7 * 24 * 60 * 60 * 1000,
-      });
-      res.cookie(CSRF_COOKIE, result.auth.csrfToken, {
-        httpOnly: false,
-        sameSite: "lax",
-        secure: isProd,
-        path: "/",
-        maxAge: 7 * 24 * 60 * 60 * 1000,
-      });
+      setAuthCookies(res, result.auth.refreshToken, result.auth.csrfToken);
     }
 
     return {

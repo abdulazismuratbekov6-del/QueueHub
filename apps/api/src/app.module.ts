@@ -12,8 +12,10 @@ import { QueuesModule } from "./queues/queues.module";
 import { SwapModule } from "./swap/swap.module";
 import { StatisticsModule } from "./statistics/statistics.module";
 import { ExportModule } from "./export/export.module";
+import { AppController } from "./app.controller";
 
 @Module({
+  controllers: [AppController],
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
     ThrottlerModule.forRoot([{ ttl: 60000, limit: 200 }]),

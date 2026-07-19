@@ -11,25 +11,18 @@ import {
   UseInterceptors,
 } from "@nestjs/common";
 import { FileInterceptor } from "@nestjs/platform-express";
-import { diskStorage } from "multer";
-import { extname, join } from "path";
-import { randomUUID } from "crypto";
-import { existsSync, mkdirSync } from "fs";
+import { memoryStorage } from "multer";
 import { JwtAuthGuard } from "../common/guards/jwt-auth.guard";
 import { CurrentUser } from "../common/decorators/current-user.decorator";
 import { AuthenticatedUser } from "../common/types/authenticated-user";
 import { ProfileService } from "./profile.service";
 import { UpdateProfileDto } from "./dto/update-profile.dto";
 
-const ALLOWED_MIME = ["image/png", "image/jpeg", "image/webp"];
-
-function avatarsDir() {
-  const dir = join(process.cwd(), process.env.UPLOADS_DIR ?? "./uploads", "avatars");
-  if (!existsSync(dir)) {
-    mkdirSync(dir, { recursive: true });
-  }
-  return dir;
-}
+const ALLOWED_MIME: Record<string, string> = {
+  "image/png": "png",
+  "image/jpeg": "jpg",
+  "image/webp": "webp",
+};
 
 @UseGuards(JwtAuthGuard)
 @Controller("profile")
@@ -49,13 +42,10 @@ export class ProfileController {
   @Patch("avatar")
   @UseInterceptors(
     FileInterceptor("file", {
-      storage: diskStorage({
-        destination: (_req, _file, cb) => cb(null, avatarsDir()),
-        filename: (_req, file, cb) => cb(null, `${randomUUID()}${extname(file.originalname)}`),
-      }),
+      storage: memoryStorage(),
       limits: { fileSize: 5 * 1024 * 1024 },
       fileFilter: (_req, file, cb) => {
-        if (!ALLOWED_MIME.includes(file.mimetype)) {
+        if (!ALLOWED_MIME[file.mimetype]) {
           cb(new BadRequestException("Допустимы только изображения PNG, JPEG или WEBP"), false);
           return;
         }
@@ -70,7 +60,8 @@ export class ProfileController {
     if (!file) {
       throw new BadRequestException("Файл не передан");
     }
-    return this.profileService.setAvatar(user.id, file.filename);
+    const extension = ALLOWED_MIME[file.mimetype];
+    return this.profileService.setAvatar(user.id, file.buffer, file.mimetype, extension);
   }
 
   @Delete("avatar")

@@ -4,7 +4,6 @@ import { ValidationPipe } from "@nestjs/common";
 import helmet from "helmet";
 import cookieParser from "cookie-parser";
 import { NestExpressApplication } from "@nestjs/platform-express";
-import { join } from "path";
 import { AppModule } from "./app.module";
 
 async function bootstrap() {
@@ -26,13 +25,9 @@ async function bootstrap() {
     }),
   );
 
-  app.useStaticAssets(join(process.cwd(), process.env.UPLOADS_DIR ?? "./uploads"), {
-    prefix: "/uploads",
-  });
-
-  const port = process.env.API_PORT ?? 4000;
+  const port = process.env.PORT ?? process.env.API_PORT ?? 4000;
   await app.listen(port);
-  console.log(`QueueHub API listening on http://localhost:${port}`);
+  console.log(`QueueHub API listening on port ${port}`);
 }
 
 bootstrap();

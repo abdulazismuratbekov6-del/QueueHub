@@ -17,10 +17,6 @@ out/
 # prisma
 apps/api/generated/
 
-# uploads (local avatar storage)
-apps/api/uploads/*
-!apps/api/uploads/.gitkeep
-
 # logs
 *.log
 npm-debug.log*

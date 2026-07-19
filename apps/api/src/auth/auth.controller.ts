@@ -15,34 +15,14 @@ import { GuestJoinDto } from "./dto/guest.dto";
 import { JwtAuthGuard } from "../common/guards/jwt-auth.guard";
 import { CurrentUser } from "../common/decorators/current-user.decorator";
 import { AuthenticatedUser } from "../common/types/authenticated-user";
-
-const REFRESH_COOKIE = "queuehub_refresh";
-const CSRF_COOKIE = "queuehub_csrf";
+import { CSRF_COOKIE, REFRESH_COOKIE, clearAuthCookies, setAuthCookies } from "../common/utils/auth-cookies";
 
 @Controller("auth")
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
-  private setAuthCookies(res: Response, result: AuthResult) {
-    const isProd = process.env.NODE_ENV === "production";
-    res.cookie(REFRESH_COOKIE, result.refreshToken, {
-      httpOnly: true,
-      sameSite: "lax",
-      secure: isProd,
-      path: "/auth",
-      maxAge: 7 * 24 * 60 * 60 * 1000,
-    });
-    res.cookie(CSRF_COOKIE, result.csrfToken, {
-      httpOnly: false,
-      sameSite: "lax",
-      secure: isProd,
-      path: "/",
-      maxAge: 7 * 24 * 60 * 60 * 1000,
-    });
-  }
-
   private respond(res: Response, result: AuthResult) {
-    this.setAuthCookies(res, result);
+    setAuthCookies(res, result.refreshToken, result.csrfToken);
     return res.json({
       accessToken: result.accessToken,
       csrfToken: result.csrfToken,
@@ -89,8 +69,7 @@ export class AuthController {
   @Post("logout")
   async logout(@CurrentUser() user: AuthenticatedUser, @Res() res: Response) {
     await this.authService.logout(user.id);
-    res.clearCookie(REFRESH_COOKIE, { path: "/auth" });
-    res.clearCookie(CSRF_COOKIE, { path: "/" });
+    clearAuthCookies(res);
     return res.json({ success: true });
   }
 }
