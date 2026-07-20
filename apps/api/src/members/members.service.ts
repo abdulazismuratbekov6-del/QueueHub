@@ -212,14 +212,29 @@ export class MembersService {
       });
     }
 
-    const next = await this.prisma.queueMember.findFirst({
+    let next = await this.prisma.queueMember.findFirst({
       where: { queueId, leftAt: null, position: { gt: queue.currentPosition } },
       orderBy: { position: "asc" },
       include: { user: true },
     });
 
     if (!next) {
-      throw new BadRequestException("В очереди больше нет участников");
+      // Дошли до конца очереди — начинаем новый круг с первого участника.
+      next = await this.prisma.queueMember.findFirst({
+        where: { queueId, leftAt: null },
+        orderBy: { position: "asc" },
+        include: { user: true },
+      });
+      if (next) {
+        await this.prisma.queueMember.updateMany({
+          where: { queueId, leftAt: null },
+          data: { completedAt: null },
+        });
+      }
+    }
+
+    if (!next) {
+      throw new BadRequestException("В очереди нет участников");
     }
 
     await this.prisma.queueMember.update({
