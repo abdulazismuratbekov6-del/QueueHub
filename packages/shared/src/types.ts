@@ -40,6 +40,7 @@ export interface SwapRequestDto {
   id: string;
   queueId: string;
   senderId: string;
+  senderName?: string;
   receiverId: string;
   senderPosition: number;
   receiverPosition: number;

@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ConflictException,
   Injectable,
   UnauthorizedException,
@@ -56,19 +57,29 @@ export class AuthService {
   }
 
   async register(dto: RegisterDto): Promise<AuthResult> {
-    const existing = await this.prisma.user.findUnique({ where: { email: dto.email } });
-    if (existing) {
-      throw new ConflictException("Пользователь с таким email уже зарегистрирован");
+    const role = dto.role ?? Role.STUDENT;
+    const username = dto.username?.trim().toLowerCase();
+
+    if (role === Role.TEACHER && (!username || !dto.password)) {
+      throw new BadRequestException("Для преподавателя укажите логин и пароль");
     }
 
-    const passwordHash = await bcrypt.hash(dto.password, 10);
+    if (role === Role.TEACHER) {
+      const existing = await this.prisma.user.findUnique({ where: { username } });
+      if (existing) {
+        throw new ConflictException("Этот логин уже занят");
+      }
+    }
+
+    const passwordHash =
+      role === Role.TEACHER && dto.password ? await bcrypt.hash(dto.password, 10) : null;
     const user = await this.prisma.user.create({
       data: {
         firstName: dto.firstName,
         lastName: dto.lastName,
-        email: dto.email,
+        username: role === Role.TEACHER ? username : null,
         passwordHash,
-        role: dto.role ?? Role.STUDENT,
+        role,
       },
     });
 
@@ -77,14 +88,22 @@ export class AuthService {
   }
 
   async login(dto: LoginDto): Promise<AuthResult> {
-    const user = await this.prisma.user.findUnique({ where: { email: dto.email } });
+    const identifier = (dto.login ?? dto.email)?.trim().toLowerCase();
+    if (!identifier) {
+      throw new UnauthorizedException("Укажите логин и пароль");
+    }
+    const user = await this.prisma.user.findFirst({
+      where: {
+        OR: [{ username: identifier }, { email: identifier }],
+      },
+    });
     if (!user || !user.passwordHash) {
-      throw new UnauthorizedException("Неверный email или пароль");
+      throw new UnauthorizedException("Неверный логин или пароль");
     }
 
     const isValid = await bcrypt.compare(dto.password, user.passwordHash);
     if (!isValid) {
-      throw new UnauthorizedException("Неверный email или пароль");
+      throw new UnauthorizedException("Неверный логин или пароль");
     }
 
     const tokens = await this.issueTokens(user.id, user.role as Role);

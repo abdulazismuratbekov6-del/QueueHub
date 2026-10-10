@@ -1,9 +1,8 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { UserDto } from "@queuehub/shared";
-import { apiRequest, ApiError, apiUrl } from "@/lib/api-client";
-import { useAuthStore } from "@/lib/auth-store";
+import { apiRequest, ApiError } from "@/lib/api-client";
 
 export function AvatarUploader({ user, onUpdated }: { user: UserDto; onUpdated: (u: UserDto) => void }) {
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -14,32 +13,44 @@ export function AvatarUploader({ user, onUpdated }: { user: UserDto; onUpdated: 
   const [cameraOpen, setCameraOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const accessToken = useAuthStore((s) => s.accessToken);
+
+  useEffect(() => {
+    const video = videoRef.current;
+    const stream = streamRef.current;
+    if (!cameraOpen || !video || !stream) return;
+
+    video.srcObject = stream;
+    void video.play().catch(() => {
+      setError("Не удалось запустить видео. Проверьте разрешение браузера на использование камеры.");
+    });
+  }, [cameraOpen]);
+
+  useEffect(
+    () => () => {
+      streamRef.current?.getTracks().forEach((track) => track.stop());
+    },
+    [],
+  );
 
   function initials() {
     return `${user.firstName[0] ?? ""}${user.lastName?.[0] ?? ""}`.toUpperCase();
   }
 
-  async function uploadBlob(blob: Blob, filename: string) {
+  async function uploadBlob(blob: Blob, filename: string): Promise<boolean> {
     setBusy(true);
     setError(null);
     try {
       const formData = new FormData();
       formData.append("file", blob, filename);
-      const res = await fetch(apiUrl("/profile/avatar"), {
+      const updated = await apiRequest<UserDto>("/profile/avatar", {
         method: "PATCH",
-        credentials: "include",
-        headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {},
         body: formData,
       });
-      if (!res.ok) {
-        const body = await res.json().catch(() => ({}));
-        throw new Error(body.message ?? "Не удалось загрузить фото");
-      }
-      const updated: UserDto = await res.json();
       onUpdated(updated);
+      return true;
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Не удалось загрузить фото");
+      setError(err instanceof ApiError ? err.message : "Не удалось загрузить фото");
+      return false;
     } finally {
       setBusy(false);
     }
@@ -48,28 +59,49 @@ export function AvatarUploader({ user, onUpdated }: { user: UserDto; onUpdated: 
   async function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
+
+    if (!["image/png", "image/jpeg", "image/webp"].includes(file.type)) {
+      setError("Выберите изображение PNG, JPEG или WEBP.");
+      e.target.value = "";
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      setError("Размер фотографии не должен превышать 5 МБ.");
+      e.target.value = "";
+      return;
+    }
+
     await uploadBlob(file, file.name);
     e.target.value = "";
   }
 
   async function openCamera() {
     setError(null);
+    if (!navigator.mediaDevices?.getUserMedia) {
+      setError("Камера недоступна. Откройте сайт через localhost или HTTPS.");
+      return;
+    }
+
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-      streamRef.current = stream;
-      setCameraOpen(true);
-      requestAnimationFrame(() => {
-        if (videoRef.current) {
-          videoRef.current.srcObject = stream;
-        }
+      streamRef.current = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: "user" },
+        audio: false,
       });
-    } catch {
-      setError("Не удалось получить доступ к камере");
+      setCameraOpen(true);
+    } catch (err) {
+      const name = err instanceof DOMException ? err.name : "";
+      if (name === "NotAllowedError" || name === "PermissionDeniedError") {
+        setError("Разрешите доступ к камере в настройках браузера и попробуйте снова.");
+      } else if (name === "NotFoundError" || name === "DevicesNotFoundError") {
+        setError("Камера не найдена.");
+      } else {
+        setError("Не удалось открыть камеру. Проверьте, что её не использует другое приложение.");
+      }
     }
   }
 
   function closeCamera() {
-    streamRef.current?.getTracks().forEach((t) => t.stop());
+    streamRef.current?.getTracks().forEach((track) => track.stop());
     streamRef.current = null;
     setCameraOpen(false);
   }
@@ -78,16 +110,26 @@ export function AvatarUploader({ user, onUpdated }: { user: UserDto; onUpdated: 
     const video = videoRef.current;
     const canvas = canvasRef.current;
     if (!video || !canvas) return;
+    if (!video.videoWidth || !video.videoHeight) {
+      setError("Камера ещё не готова. Подождите немного и попробуйте снова.");
+      return;
+    }
+
     canvas.width = video.videoWidth;
     canvas.height = video.videoHeight;
     const ctx = canvas.getContext("2d");
-    ctx?.drawImage(video, 0, 0);
-    canvas.toBlob(async (blob) => {
-      if (blob) {
-        await uploadBlob(blob, "camera.png");
-      }
-      closeCamera();
-    }, "image/png");
+    if (!ctx) {
+      setError("Не удалось обработать снимок.");
+      return;
+    }
+    ctx.drawImage(video, 0, 0);
+
+    const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/png"));
+    if (!blob) {
+      setError("Не удалось создать файл фотографии.");
+      return;
+    }
+    if (await uploadBlob(blob, "camera.png")) closeCamera();
   }
 
   async function removeAvatar() {
@@ -119,7 +161,7 @@ export function AvatarUploader({ user, onUpdated }: { user: UserDto; onUpdated: 
           <video ref={videoRef} autoPlay playsInline className="h-48 w-64 rounded-lg bg-black object-cover" />
           <canvas ref={canvasRef} className="hidden" />
           <div className="flex gap-2">
-            <button type="button" className="btn-primary" onClick={capturePhoto} disabled={busy}>
+            <button type="button" className="btn-primary" onClick={() => void capturePhoto()} disabled={busy}>
               Снять фото
             </button>
             <button type="button" className="btn-secondary" onClick={closeCamera}>
@@ -129,14 +171,19 @@ export function AvatarUploader({ user, onUpdated }: { user: UserDto; onUpdated: 
         </div>
       ) : (
         <div className="flex flex-wrap justify-center gap-2">
-          <button type="button" className="btn-secondary" onClick={openCamera} disabled={busy}>
+          <button type="button" className="btn-secondary" onClick={() => void openCamera()} disabled={busy}>
             Сделать фото с камеры
           </button>
-          <button type="button" className="btn-secondary" onClick={() => fileInputRef.current?.click()} disabled={busy}>
+          <button
+            type="button"
+            className="btn-secondary"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={busy}
+          >
             Выбрать из галереи/файла
           </button>
           {user.avatarUrl && (
-            <button type="button" className="btn-danger" onClick={removeAvatar} disabled={busy}>
+            <button type="button" className="btn-danger" onClick={() => void removeAvatar()} disabled={busy}>
               Удалить фото
             </button>
           )}

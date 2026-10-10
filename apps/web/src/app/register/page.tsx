@@ -12,7 +12,7 @@ export default function RegisterPage() {
   const [form, setForm] = useState({
     firstName: "",
     lastName: "",
-    email: "",
+    username: "",
     password: "",
     role: Role.STUDENT,
   });
@@ -24,9 +24,17 @@ export default function RegisterPage() {
     setError(null);
     setLoading(true);
     try {
+      const body = {
+        firstName: form.firstName,
+        lastName: form.lastName,
+        role: form.role,
+        ...(form.role === Role.TEACHER
+          ? { username: form.username, password: form.password }
+          : {}),
+      };
       const result = await apiRequest<{ accessToken: string; csrfToken: string; user: any }>(
         "/auth/register",
-        { method: "POST", body: form },
+        { method: "POST", body },
       );
       setSession(result);
       router.push(form.role === Role.TEACHER ? "/teacher" : "/");
@@ -59,27 +67,6 @@ export default function RegisterPage() {
           />
         </div>
         <div>
-          <label className="label">Email</label>
-          <input
-            type="email"
-            className="input"
-            required
-            value={form.email}
-            onChange={(e) => setForm({ ...form, email: e.target.value })}
-          />
-        </div>
-        <div>
-          <label className="label">Пароль</label>
-          <input
-            type="password"
-            minLength={6}
-            className="input"
-            required
-            value={form.password}
-            onChange={(e) => setForm({ ...form, password: e.target.value })}
-          />
-        </div>
-        <div>
           <label className="label">Роль</label>
           <select
             className="input"
@@ -90,6 +77,36 @@ export default function RegisterPage() {
             <option value={Role.TEACHER}>Преподаватель</option>
           </select>
         </div>
+        {form.role === Role.TEACHER && (
+          <>
+            <div>
+              <label className="label">Логин преподавателя</label>
+              <input
+                className="input"
+                required
+                minLength={3}
+                maxLength={24}
+                pattern="[A-Za-z0-9_]+"
+                autoComplete="username"
+                value={form.username}
+                onChange={(e) => setForm({ ...form, username: e.target.value })}
+              />
+              <p className="mt-1 text-xs text-slate-500">3–24 символа: латинские буквы, цифры и _</p>
+            </div>
+            <div>
+              <label className="label">Пароль</label>
+              <input
+                type="password"
+                minLength={6}
+                className="input"
+                required
+                autoComplete="new-password"
+                value={form.password}
+                onChange={(e) => setForm({ ...form, password: e.target.value })}
+              />
+            </div>
+          </>
+        )}
 
         {error && <p className="text-sm text-red-600">{error}</p>}
 

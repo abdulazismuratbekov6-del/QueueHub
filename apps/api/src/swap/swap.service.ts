@@ -74,9 +74,17 @@ export class SwapService {
   async listIncoming(user: AuthenticatedUser): Promise<SwapRequestDto[]> {
     const swaps = await this.prisma.swapRequest.findMany({
       where: { receiverId: user.id, status: SwapStatus.PENDING },
+      include: {
+        sender: {
+          select: { firstName: true, lastName: true },
+        },
+      },
       orderBy: { createdAt: "desc" },
     });
-    return swaps.map(toSwapDto);
+    return swaps.map((swap) => ({
+      ...toSwapDto(swap),
+      senderName: [swap.sender.firstName, swap.sender.lastName].filter(Boolean).join(" "),
+    }));
   }
 
   private async getPendingForReceiver(swapRequestId: string, user: AuthenticatedUser) {

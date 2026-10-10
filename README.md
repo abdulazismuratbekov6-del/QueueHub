@@ -36,22 +36,39 @@ pnpm install
 
 ### 3. Переменные окружения
 
-Скопируйте `.env.example` в `apps/api/.env` (и при необходимости `apps/web/.env.local`)
-и укажите свою строку подключения к PostgreSQL в `DATABASE_URL`.
+В PowerShell из корня проекта создайте файл настроек API:
+
+```powershell
+Copy-Item .env.example apps/api/.env
+notepad apps/api/.env
+```
+
+Укажите в `DATABASE_URL` строку подключения к работающей PostgreSQL, например:
+`postgresql://USER:PASSWORD@localhost:5432/queuehub?schema=public`.
+Замените `USER`, `PASSWORD` и имя базы на свои значения. База `queuehub` должна быть создана заранее.
+Не публикуйте `apps/api/.env` и не добавляйте его в Git.
+
+Для загрузки фото профиля также заполните `SUPABASE_URL` и
+`SUPABASE_SERVICE_ROLE_KEY` в `apps/api/.env` и создайте в Supabase публичный bucket
+с именем из `SUPABASE_AVATAR_BUCKET` (по умолчанию `avatars`) для production. В локальной
+разработке, если в шаблоне остались значения `your-project`/`your-service-role-key`, фото
+сохраняются в `apps/api/uploads/avatars`. Service role key храните только на сервере;
+камера в браузере на `localhost` не требует HTTPS.
+
+При регистрации студент указывает имя и фамилию; пароль и email не требуются. Преподаватель
+указывает уникальный логин и пароль. Для уже существующих баз после обновления кода выполните
+миграцию из следующего шага; старые аккаунты преподавателей по-прежнему можно открыть, введя
+их email в поле логина.
 
 ### 4. База данных
+
+Убедитесь, что PostgreSQL запущен, затем примените миграции:
 
 ```bash
 pnpm --filter @queuehub/api run prisma:migrate
 ```
 
-### 5. Сборка общего пакета типов
-
-```bash
-pnpm --filter @queuehub/shared run build
-```
-
-### 6. Запуск
+### 5. Запуск
 
 В двух терминалах:
 
@@ -59,6 +76,10 @@ pnpm --filter @queuehub/shared run build
 pnpm run dev:api   # http://localhost:4000
 pnpm run dev:web   # http://localhost:3000
 ```
+
+Перед запуском API автоматически собирается общий пакет типов и генерируется Prisma Client.
+Если `DATABASE_URL` не задан или база недоступна, API не запустится, а запросы браузера к
+`localhost:4000` завершатся `ERR_CONNECTION_REFUSED`.
 
 ## Реализованный функционал MVP
 
