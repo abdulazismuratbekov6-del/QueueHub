@@ -1,4 +1,6 @@
 import "reflect-metadata";
+import { join } from "path";
+import { static as serveStatic } from "express";
 import { NestFactory } from "@nestjs/core";
 import { ValidationPipe } from "@nestjs/common";
 import helmet from "helmet";
@@ -13,6 +15,10 @@ async function bootstrap() {
     helmet({
       crossOriginResourcePolicy: false,
     }),
+  );
+  app.use(
+    "/uploads/avatars",
+    serveStatic(join(process.cwd(), "uploads", "avatars"), { maxAge: "1d", immutable: true }),
   );
 
   app.use(cookieParser());
@@ -43,7 +49,7 @@ async function bootstrap() {
     },
     credentials: true,
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization"],
+    allowedHeaders: ["Content-Type", "Authorization", "x-csrf-token"],
     optionsSuccessStatus: 204,
   });
 

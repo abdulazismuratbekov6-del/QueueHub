@@ -182,7 +182,10 @@ export default function QueueViewPage({ params }: { params: { id: string } }) {
             {incoming.map((swap) => (
               <div key={swap.id} className="flex items-center justify-between rounded-lg bg-slate-50 p-2 text-sm dark:bg-slate-900">
                 <span>
-                  Запрос на обмен ({swap.swapType === SwapType.ONE_ROUND ? "один круг" : "навсегда"})
+                  <strong className="font-semibold text-green-700 underline decoration-green-600 underline-offset-2 dark:text-green-400 dark:decoration-green-400">
+                    {swap.senderName || "Участник"}
+                  </strong>{" "}
+                  предлагает обмен ({swap.swapType === SwapType.ONE_ROUND ? "один круг" : "навсегда"})
                 </span>
                 <div className="flex gap-2">
                   <button className="btn-primary" disabled={busy} onClick={() => respondSwap(swap.id, "accept")}>

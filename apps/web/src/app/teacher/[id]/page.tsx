@@ -144,6 +144,7 @@ export default function TeacherQueueDetailPage({ params }: { params: { id: strin
                 <span className="text-lg font-mono">⏱ {timerRemaining ?? "--"} сек</span>
                 <button
                   className="btn-secondary"
+                  disabled={busy}
                   onClick={() => runAction(() => apiRequest(`/queues/${queueId}/timer/stop`, { method: "POST" }))}
                 >
                   Остановить таймер

@@ -31,10 +31,12 @@ export class TimerService implements OnModuleDestroy {
   async start(queueId: string, seconds?: number) {
     this.stop(queueId);
 
-    let durationSeconds = seconds;
-    if (!durationSeconds) {
+    let durationSeconds: number;
+    if (!seconds) {
       const queue = await this.prisma.queue.findUnique({ where: { id: queueId } });
       durationSeconds = queue?.timerSeconds ?? 120;
+    } else {
+      durationSeconds = seconds;
     }
 
     this.runCountdown(queueId, durationSeconds);
@@ -65,13 +67,20 @@ export class TimerService implements OnModuleDestroy {
 
     if (state.remaining <= 0) {
       clearInterval(state.interval);
-      this.timers.delete(queueId);
 
       try {
         await this.membersService.callNext(queueId);
-        this.runCountdown(queueId, state.durationSeconds);
+        if (this.timers.get(queueId) === state) {
+          this.runCountdown(queueId, state.durationSeconds);
+        }
       } catch {
-        this.realtime.emitToQueue(queueId, SocketEvents.TIMER_TICK, { remaining: 0, running: false });
+        if (this.timers.get(queueId) === state) {
+          this.timers.delete(queueId);
+          this.realtime.emitToQueue(queueId, SocketEvents.TIMER_TICK, {
+            remaining: 0,
+            running: false,
+          });
+        }
       }
     }
   }

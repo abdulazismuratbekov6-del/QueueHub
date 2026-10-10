@@ -1,4 +1,4 @@
-import { IsEmail, IsIn, IsOptional, IsString, MinLength } from "class-validator";
+import { IsEmail, IsIn, IsOptional, IsString, Matches, MinLength } from "class-validator";
 import { Role } from "@queuehub/shared";
 
 export class RegisterDto {
@@ -10,12 +10,19 @@ export class RegisterDto {
   @IsString()
   lastName?: string;
 
-  @IsEmail()
-  email!: string;
+  @IsOptional()
+  @IsString()
+  @Matches(/^[a-zA-Z0-9_]{3,24}$/)
+  username?: string;
 
+  @IsOptional()
   @IsString()
   @MinLength(6)
-  password!: string;
+  password?: string;
+
+  @IsOptional()
+  @IsEmail()
+  email?: string;
 
   @IsOptional()
   @IsIn([Role.STUDENT, Role.TEACHER])

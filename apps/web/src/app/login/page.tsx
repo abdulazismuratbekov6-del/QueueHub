@@ -8,7 +8,7 @@ import { useAuthStore } from "@/lib/auth-store";
 export default function LoginPage() {
   const router = useRouter();
   const setSession = useAuthStore((s) => s.setSession);
-  const [form, setForm] = useState({ email: "", password: "" });
+  const [form, setForm] = useState({ login: "", password: "" });
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -22,7 +22,7 @@ export default function LoginPage() {
         { method: "POST", body: form },
       );
       setSession(result);
-      router.push("/");
+      router.push(result.user.role === "TEACHER" ? "/teacher" : "/");
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Не удалось войти");
     } finally {
@@ -35,13 +35,13 @@ export default function LoginPage() {
       <h1 className="mb-6 text-2xl font-bold">Вход</h1>
       <form onSubmit={handleSubmit} className="card space-y-4">
         <div>
-          <label className="label">Email</label>
+          <label className="label">Логин преподавателя</label>
           <input
-            type="email"
             className="input"
             required
-            value={form.email}
-            onChange={(e) => setForm({ ...form, email: e.target.value })}
+            autoComplete="username"
+            value={form.login}
+            onChange={(e) => setForm({ ...form, login: e.target.value })}
           />
         </div>
         <div>
